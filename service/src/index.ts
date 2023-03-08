@@ -36,7 +36,7 @@ function checkToken(word: string) {
   const parts = plainToken.split('_')
   if (parts.length !== 3)
     return false
-  const seconds = Number(parts[2])
+  const seconds = Number(parts[1])
   let date = new Date()
   date = new Date(date.setTime(date.getTime() - seconds * 1000))
   let result = false

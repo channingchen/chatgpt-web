@@ -27,6 +27,7 @@ const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex } = useChat()
 const { scrollRef, scrollToBottom } = useScroll()
 
 const { uuid } = route.params as { uuid: string }
+const { token } = route.params as { token: string }
 
 const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
 const conversationList = computed(() => dataSources.value.filter(item => (!item.inversion && !item.error)))
@@ -88,6 +89,7 @@ async function onConversation() {
   try {
     await fetchChatAPIProcess<Chat.ConversationResponse>({
       prompt: message,
+      token,
       options,
       signal: controller.signal,
       onDownloadProgress: ({ event }) => {
@@ -206,6 +208,7 @@ async function onRegenerate(index: number) {
   try {
     await fetchChatAPIProcess<Chat.ConversationResponse>({
       prompt: message,
+      token,
       options,
       signal: controller.signal,
       onDownloadProgress: ({ event }) => {

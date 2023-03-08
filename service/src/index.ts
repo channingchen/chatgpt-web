@@ -1,7 +1,12 @@
 import express from 'express'
+import sqlite from 'sqlite-sync'
+import CryptoJS from 'crypto-js'
 import type { ChatContext, ChatMessage } from './chatgpt'
 import { chatConfig, chatReplyProcess } from './chatgpt'
-import { auth } from './middleware/auth'
+
+const key = CryptoJS.enc.Utf8.parse('8ICpNF7R4dmfhJcS')
+
+const db = sqlite.connect('./db/database.db')
 
 const app = express()
 const router = express.Router()
@@ -16,11 +21,52 @@ app.all('*', (_, res, next) => {
   next()
 })
 
-router.post('/chat-process', auth, async (req, res) => {
+function decrypt(word: string) {
+  // const encryptedHexStr = CryptoJS.enc.Hex.parse(word)
+  // const srcs = CryptoJS.enc.Base64.stringify(encryptedHexStr)
+  const decrypt = CryptoJS.AES.decrypt(word, key, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 })
+  const decryptedStr = decrypt.toString(CryptoJS.enc.Utf8)
+  return decryptedStr.toString()
+}
+
+function checkToken(word: string) {
+  const plainToken = decrypt(word)
+  if (!plainToken || !plainToken.startsWith('CG'))
+    return false
+  const parts = plainToken.split('_')
+  if (parts.length !== 3)
+    return false
+  const seconds = Number(parts[2])
+  let date = new Date()
+  date = new Date(date.setTime(date.getTime() - seconds * 1000))
+  let result = false
+  db.run(`select * from token_table where token = '${plainToken}'`,
+    (rows) => {
+      if (rows.length > 0) {
+        const start = rows[0].start
+        const compare = date.getTime()
+        if (start > compare)
+          result = true
+      }
+      else {
+        db.run(`insert into token_table values('${plainToken}', ${Date.now()})`)
+        result = true
+      }
+    })
+
+  return result
+}
+
+router.post('/chat-process', async (req, res) => {
   res.setHeader('Content-type', 'application/octet-stream')
 
   try {
-    const { prompt, options = {} } = req.body as { prompt: string; options?: ChatContext }
+    const { prompt, token, options = {} } = req.body as { prompt: string; token: string; options?: ChatContext }
+    if (!checkToken(token)) {
+      res.write(JSON.stringify({ message: 'token已过期' }))
+      return
+    }
+
     let firstChunk = true
     await chatReplyProcess(prompt, options, (chat: ChatMessage) => {
       res.write(firstChunk ? JSON.stringify(chat) : `\n${JSON.stringify(chat)}`)

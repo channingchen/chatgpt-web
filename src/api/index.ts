@@ -22,13 +22,14 @@ export function fetchChatConfig<T = any>() {
 export function fetchChatAPIProcess<T = any>(
   params: {
     prompt: string
+    token: string
     options?: { conversationId?: string; parentMessageId?: string }
     signal?: GenericAbortSignal
     onDownloadProgress?: (progressEvent: AxiosProgressEvent) => void },
 ) {
   return post<T>({
     url: '/chat-process',
-    data: { prompt: params.prompt, options: params.options },
+    data: { prompt: params.prompt, token: params.token, options: params.options },
     signal: params.signal,
     onDownloadProgress: params.onDownloadProgress,
   })
